@@ -1,6 +1,6 @@
 import pygame
-from pygame import Color, Rect, Surface
-from pygame.font import Font
+from pygame import Color, Rect, Surface, Font
+# from pygame.font import Font
 
 import sys
 from time import time
@@ -159,25 +159,22 @@ class TextLabel(Frame):
     textColor: Color
     textAlignment = Vector2(0.5, 0.5)
     
-    font = None
-    fontName = None
-    fontSize = 12
+    font: Font
 
     state = "idle"
     
     _cachedRender=("", None)
 
-    def __init__(self, position=Udim2(), size=Udim2.fromOffset(200, 50)):
+    def __init__(self, position=Udim2(), size=Udim2.fromOffset(200, 50), font=None):
         Frame.__init__(self, position, size)
-        self.font = pygame.font.Font(None, )
+        self.font = font or Font()
         self.textColor = Color("black")
 
     
     def render(self, layer, rect: Rect):
         # Render font if text changed
         if self._cachedRender[0] != self.text:
-            font = Font(self.fontName, self.fontSize)
-            render = font.render(self.text, True, self.textColor)
+            render = self.font.render(self.text, True, self.textColor)
             self._cachedRender = (self.text, render)
 
         # Gets the text size and creates a rect centered from the background
