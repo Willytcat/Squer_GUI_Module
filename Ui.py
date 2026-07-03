@@ -159,6 +159,7 @@ class TextLabel(Frame):
     textColor: Color
     textAlignment = Vector2(0.5, 0.5)
     
+    font = None
     fontName = None
     fontSize = 12
 
@@ -254,7 +255,7 @@ class Panel(UIElement):
                     self.descendants[value] = elem
                 
                 if propName == "children":
-                    self.build(tree, elem)
+                    self.build(value, elem)
                     continue
 
                 if propName == "transparency":
