@@ -106,16 +106,14 @@ class Frame(UIElement):
 
     def executeActions(self):
         stateActions = self.actions.get(self.state)
-        if not stateActions: return
-        
-        for action in stateActions:
-            action()
+        if stateActions:
+            for action in stateActions:
+                action()
 
         updateActions = self.actions.get("onUpdate")
-        if not updateActions: return
-        
-        for action in updateActions:
-            action()
+        if updateActions:
+            for action in updateActions:
+                action()
 
     def calcRect(self):
         parentPos = self.parent.absolutePosition
