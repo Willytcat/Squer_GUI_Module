@@ -106,9 +106,16 @@ class Frame(UIElement):
 
     def executeActions(self):
         stateActions = self.actions.get(self.state)
-        if stateActions:
-            for action in stateActions:
-                action()
+        if not stateActions: return
+        
+        for action in stateActions:
+            action()
+
+        updateActions = self.actions.get("onUpdate")
+        if not updateActions: return
+        
+        for action in updateActions:
+            action()
 
     def calcRect(self):
         parentPos = self.parent.absolutePosition
@@ -128,12 +135,8 @@ class Frame(UIElement):
         self.color.update(self.color.r, self.color.g, self.color.b, alpha)
 
     def render(self, layer, rect: Rect) -> Rect:
-        surface = self._surface
-        if not surface:
-            surface = self.updateRenderSurface(layer)
-        
+        surface = self._surface or self.updateRenderSurface(layer)
         surface.fill((0, 0, 0, 0))
-        # self._surface = render
 
         draw_rect = pygame.draw.rect(surface, self.color, rect)
         layer.blit(surface)
@@ -198,9 +201,13 @@ class TextButton(TextLabel):
         mx, my = pygame.mouse.get_pos()
         m1 = pygame.mouse.get_pressed()[0]
         mouseCollision = rect.collidepoint(mx, my)
+        isActivated = (self.state == "activated" or self.state == "hold")
 
-        if (self.state == "activated" or self.state == "hold") and m1:
+        if isActivated and m1:
             self.state = "hold"
+
+        if isActivated and not m1:
+            self.state = "clicked"
 
         elif mouseCollision and m1:
             self.state = "activated"
@@ -293,8 +300,9 @@ class Panel(UIElement):
 
     def render(self, surface):
         for elem in self.elements:
+            boundingBox = elem.update(surface)
+            
             if elem.enabled:
-                boundingBox = elem.update(surface)
                 elem.render(surface, boundingBox)
 
 
@@ -332,7 +340,7 @@ def test():
     window = pygame.display.set_mode((WIDTH, HEIGHT))
     ui_layer = UILayer(window)
 
-    background_color = Color("red")
+    background_color = Color("black")
 
     panel1 = Panel.fromLayer(ui_layer)
     panel1.build({
@@ -347,9 +355,9 @@ def test():
                     "name": "main_button",
                     "size": (1,0, 0,50),
                     "textColor": "red",
-                    "color": "black",
+                    "color": "white",
                     "transparency": .75,
-                    "fontSize": 40,
+                    "font": Font(None, 40),
                     "textAlignment": (1, .5),
                 }
             }
@@ -359,26 +367,13 @@ def test():
     panel2 = Panel.fromLayer(ui_layer)
     panel2.enabled = False
 
-    # frame1 = Frame(position=Udim2.fromScale(0.5, 0.5), size=Udim2.fromScale(.5, .5))
-    # frame1.anchorPoint = Vector2(0.5, 0.5)
-    # frame1.color = Color("blue")
-    # panel1.setParent(frame1)
 
     frame2 = Frame(size=Udim2.fromScale(0.5,0.5))
     frame2.color = Color("red")
     panel2.setParent(frame2)
 
-
-    # textbutton1 = TextButton(size=Udim2(1,0, 0,50))
-    # textbutton1.fontSize = 40
-    # textbutton1.textColor = Color("red")
-    # textbutton1.color = Color("black")
-    # textbutton1.setTransparency(.75)
-    # textbutton1.textAlignment = Vector2(1, 0.5)
-    
-    # panel1.setParent(textbutton1, frame1)
-
     textbutton2 = TextButton(size=Udim2(1,0, 0,50))
+    textbutton2.font = Font(None, 40)
     textbutton2.fontSize = 40
     textbutton2.textColor = Color("blue")
     textbutton2.setTransparency(0)
@@ -394,15 +389,9 @@ def test():
         panel1.enabled = False
         panel2.enabled = True
 
-    panel1.descendants["main_button"].bindAction("activated", displayPanel2)
-    textbutton2.bindAction("activated", displayPanel1)
-    
-    # def togglePanels():
-    #     panel1.enabled = not panel1.enabled
-    #     panel2.enabled = not panel2.enabled
-
-    # textbutton1.bindAction("activated", togglePanels)
-    # textbutton2.bindAction("activated", togglePanels)
+    panel1_btn = panel1.descendants["main_button"]
+    panel1_btn.bindAction("clicked", displayPanel2)
+    textbutton2.bindAction("clicked", displayPanel1)
 
 
     while True:
