@@ -248,16 +248,22 @@ class Panel(UIElement):
 
     
     def build(self, tree, _parent=None):
-        for name, props in tree.items():
-            elem = DISPLAY_UI_ELEMENTS[name]()
+        for infos in tree:
+            elem_type = infos.get("type")
+            assert elem_type, f"{infos.get("name") or "anonymous ui element"} missing type"
+            
+            elem_class = DISPLAY_UI_ELEMENTS.get(elem_type)
+            assert elem_class, f"{infos.get("name") or "anonymous ui element"} invalid type"
+
+            elem = elem_class()
             self.setParent(elem, _parent)
             
-            for propName, value in props.items():
+            for propName, value in infos.items():
                 if propName == "parent": continue
 
                 if propName == "name":
                     self.descendants[value] = elem
-                
+
                 if propName == "children":
                     self.build(value, elem)
                     continue
