@@ -66,10 +66,13 @@ class UIElement():
     absoluteSize: Vector2
     absolutePosition: Vector2
 
+    name = "anonymous"
+    type: str
     enabled = True
-    _disabledParent = False
     visible = True
     parent = None
+
+    _disabledParent = False
 
 
 class Frame(UIElement):
@@ -82,10 +85,9 @@ class Frame(UIElement):
     actions: dict
 
     def __init__(self, position=Udim2(), size=Udim2.fromOffset(200, 50)):
-        self.position = position
-        self.size = size
-        self.absolutePosition = Vector2()
-        self.absoluteSize = Vector2()
+        self.type = UI_ELEMENTS_TYPE_NAMES.get(self.__class__)
+        self.position, self.size = position, size
+        self.absolutePosition, self.absoluteSize = Vector2(), Vector2()
         self.color = Color("white")
 
         self.actions = {}
@@ -110,12 +112,12 @@ class Frame(UIElement):
         stateActions = self.actions.get(self.state)
         if stateActions:
             for action in stateActions:
-                action()
+                action(self)
 
         updateActions = self.actions.get("onUpdate")
         if updateActions:
             for action in updateActions:
-                action()
+                action(self)
 
     def calcRect(self):
         parentPos = self.parent.absolutePosition
@@ -202,7 +204,7 @@ class TextButton(TextLabel):
         m1 = pygame.mouse.get_pressed()[0]
         mouseCollision = rect.collidepoint(mx, my)
         isActivated = (self.state == "activated" or self.state == "hold")
-
+        
         if isActivated and m1:
             self.state = "hold"
 
@@ -224,9 +226,15 @@ class TextButton(TextLabel):
 
 
 DISPLAY_UI_ELEMENTS = {
-    "frame": Frame,
-    "text_label": TextLabel,
-    "text_button": TextButton
+    "FRAME": Frame,
+    "TEXT_LABEL": TextLabel,
+    "TEXT_BUTTON": TextButton
+}
+
+UI_ELEMENTS_TYPE_NAMES = {
+    Frame: "FRAME",
+    TextLabel: "TEXT_LABEL",
+    TextButton: "TEXT_BUTTON"
 }
 
 
@@ -250,10 +258,13 @@ class Panel(UIElement):
     def build(self, tree, _parent=None):
         for infos in tree:
             elem_type = infos.get("type")
-            assert elem_type, f"{infos.get("name") or "anonymous ui element"} missing type"
+            elem_name = infos.get("name")
+            if not elem_type:
+                raise ValueError(f"{elem_name} ui tree element missing type")
             
             elem_class = DISPLAY_UI_ELEMENTS.get(elem_type)
-            assert elem_class, f"{infos.get("name") or "anonymous ui element"} invalid type"
+            if not elem_class:
+                raise ValueError(f"{elem_name} ui tree element invalid type: '{elem_type}'")
 
             elem = elem_class()
             self.setParent(elem, _parent)
@@ -351,7 +362,7 @@ def exit():
     sys.exit()
 
 
-def test():
+def demo():
     ratio = 1200/1920
     WIDTH = 1000
     HEIGHT = WIDTH*ratio
@@ -360,56 +371,99 @@ def test():
 
     background_color = Color("black")
 
+    mainPanel = Panel.fromLayer(ui_layer)
+    mainPanel.build([
+        {
+            "type": "TEXT_LABEL",
+            "position": (.5,0,0,10),
+            "anchorPoint": (.5, 0),
+            "font": Font(None, 50),
+            "text": "DEMO",
+            "textColor": "white",
+            "transparency": 1
+        }
+    ])
+
     panel1 = Panel.fromLayer(ui_layer)
-    panel1.build({
-        "frame": {
+    panel1.build([
+        {
+            "type": "FRAME",
             "name": "main_frame",
             "position": (0,0,.5,0),
             "size": (.5,0,.5,0),
             "anchorPoint": (0, .5),
             "color": "blue",
-            "children": {
-                "text_button": {
+            "children": [
+                {
+                    "type": "TEXT_LABEL",
+                    "transparency": 1,
+                    "size": (1,0,0,50),
+                    "text": "Panel 1",
+                    "font": Font(None, 40),
+                    "textColor": "white"
+                },
+                {
+                    "type": "TEXT_BUTTON",
                     "name": "main_button",
                     "size": (1,0, 0,50),
+                    "position": (0,0,0,50),
                     "textColor": "red",
                     "color": "white",
                     "transparency": .75,
-                    "font": Font(None, 40),
+                    "font": Font(None, 35),
                     "textAlignment": (1, .5),
+                    "text": "Spawn Panel 2 >"
                 }
-            }
+            ]
         }
-    })
+    ])
     
     panel2 = Panel.fromLayer(ui_layer)
     panel2.enabled = False
 
 
-    frame2 = Frame(size=Udim2.fromScale(0.5,0.5))
+    frame2 = Frame(position=Udim2.fromScale(1, .5), size=Udim2.fromScale(0.5,0.5))
+    frame2.anchorPoint = Vector2(1, .5)
     frame2.color = Color("red")
     panel2.setParent(frame2)
 
-    textbutton2 = TextButton(size=Udim2(1,0, 0,50))
-    textbutton2.font = Font(None, 40)
+    textlabel2 = TextLabel(size=Udim2(1,0,0,50))
+    textlabel2.text = "Welcome to Panel 2"
+    textlabel2.font = Font(None, 40)
+    textlabel2.setTransparency(1)
+    
+    panel2.setParent(textlabel2, frame2)
+
+    textbutton2 = TextButton(position=Udim2.fromOffset(0,50), size=Udim2(1,0, 0,50))
+    textbutton2.font = Font(None, 35)
     textbutton2.fontSize = 40
     textbutton2.textColor = Color("blue")
     textbutton2.setTransparency(0)
+    textbutton2.text = "Dispawn!"
     
     panel2.setParent(textbutton2, frame2)
     
 
-    def displayPanel1():
+    def displayPanel1(self):
         panel2.enabled = False
         panel1.enabled = True
 
-    def displayPanel2():
+    def displayPanel2(self):
         panel1.enabled = False
         panel2.enabled = True
+
+    def hoverStyling(self):
+        if self.state == "hovered":
+            self.setTransparency(0)
+        else:
+            self.setTransparency(.25)
 
     panel1_btn = panel1.descendants["main_button"]
     panel1_btn.bindAction("clicked", displayPanel2)
     textbutton2.bindAction("clicked", displayPanel1)
+
+    panel1_btn.bindAction("onUpdate", hoverStyling)
+    textbutton2.bindAction("onUpdate", hoverStyling)
 
 
     while True:
@@ -422,6 +476,9 @@ def test():
                     return exit()
 
         now = time()
+
+        if panel2.enabled:
+            textlabel2.textAlignment = Vector2((cos(now) + 1)/2, (sin(now) + 1)/2)
         
         ui_layer.render()
         
@@ -429,8 +486,8 @@ def test():
         window.blit(ui_layer.surface, (0, 0))
         
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(500)
 
 
 if __name__=="__main__":
-    test()
+    demo()
